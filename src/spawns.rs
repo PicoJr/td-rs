@@ -6,8 +6,8 @@ pub fn batch_spawn_units(world: &mut World, units: usize) {
     let mut rng = thread_rng();
     let to_spawn = (0..units).map(|_| {
         let position = Position {
-            x: rng.gen_range(-10..10),
-            y: rng.gen_range(-10..10),
+            x: rng.gen_range(-100..100),
+            y: rng.gen_range(-100..100),
         };
         let speed = Speed(rng.gen_range(1..5));
         let health = Health(rng.gen_range(30..50));
@@ -20,8 +20,8 @@ pub fn batch_spawn_towers(world: &mut World, towers: usize) {
     let mut rng = thread_rng();
     let to_spawn = (0..towers).map(|_| {
         let position = Position {
-            x: rng.gen_range(-10..10),
-            y: rng.gen_range(-10..10),
+            x: rng.gen_range(-100..100),
+            y: rng.gen_range(-100..100),
         };
         let damage = Damage(rng.gen_range(30..50));
         let range = Range(rng.gen_range(5..10));

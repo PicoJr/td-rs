@@ -10,6 +10,11 @@ mod systems;
 
 use crate::config::get_config;
 use hecs::*;
+use macroquad::prelude::{
+    clear_background, draw_text, next_frame, screen_height, screen_width, DARKGRAY, GREEN, RED,
+    WHITE,
+};
+use macroquad::shapes::draw_circle;
 use std::io;
 
 fn print_world_state(world: &mut World) {
@@ -32,13 +37,41 @@ fn print_world_state(world: &mut World) {
     }
 }
 
+fn draw_world(world: &World) {
+    let (center_x, center_y) = (screen_width() / 2.0, screen_height() / 2.0);
+    // let (center_x, center_y) = (100f32, 100f32);
+    for (_id, position) in world
+        .query::<With<components::Health, &components::Position>>()
+        .iter()
+    {
+        draw_circle(
+            center_x + position.x as f32,
+            center_y + position.y as f32,
+            10.0,
+            RED,
+        );
+    }
+    for (_id, position) in world
+        .query::<With<components::Damage, &components::Position>>()
+        .iter()
+    {
+        draw_circle(
+            center_x + position.x as f32,
+            center_y + position.y as f32,
+            10.0,
+            GREEN,
+        );
+    }
+}
+
 enum Action {
     Quit,
     Print,
     Continue,
 }
 
-fn main() -> anyhow::Result<()> {
+#[macroquad::main("TD")]
+async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let config = get_config()?;
@@ -51,6 +84,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut motion_query =
         PreparedQuery::<(&mut components::Position, &components::Speed)>::default();
+    let mut step: usize = 0;
 
     loop {
         let action = if config.interactive {
@@ -66,6 +100,7 @@ fn main() -> anyhow::Result<()> {
         } else {
             Action::Continue
         };
+        clear_background(WHITE);
         match action {
             Action::Continue => {
                 // Run all simulation systems:
@@ -84,6 +119,10 @@ fn main() -> anyhow::Result<()> {
                 break;
             }
         }
+        draw_world(&world);
+        draw_text(&format!("step: {}", step), 20.0, 20.0, 30.0, DARKGRAY);
+        next_frame().await;
+        step += 1;
     }
     let score = systems::system_score(&world);
     info!("score: {}", score);
