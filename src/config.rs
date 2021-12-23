@@ -4,6 +4,7 @@ use std::str::FromStr;
 pub struct Config {
     pub(crate) interactive: bool,
     pub(crate) towers: usize,
+    pub(crate) units: usize,
 }
 
 impl Default for Config {
@@ -11,6 +12,7 @@ impl Default for Config {
         Config {
             interactive: false,
             towers: 10,
+            units: 10,
         }
     }
 }
@@ -33,6 +35,12 @@ pub fn get_app() -> App<'static, 'static> {
                 .takes_value(true)
                 .default_value("10"),
         )
+        .arg(
+            Arg::with_name("units")
+                .long("units")
+                .takes_value(true)
+                .default_value("10"),
+        )
 }
 
 pub fn get_config() -> anyhow::Result<Config> {
@@ -42,8 +50,13 @@ pub fn get_config() -> anyhow::Result<Config> {
         Some(t) => usize::from_str(t)?,
         None => Config::default().towers,
     };
+    let units = match matches.value_of("units") {
+        Some(u) => usize::from_str(u)?,
+        None => Config::default().units,
+    };
     Ok(Config {
         interactive,
         towers,
+        units,
     })
 }

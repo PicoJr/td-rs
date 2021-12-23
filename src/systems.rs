@@ -27,7 +27,7 @@ pub fn system_integrate_motion(
 
 pub fn system_remove_arrived(world: &mut World, target: &Position) -> usize {
     let mut to_remove: Vec<Entity> = Vec::new();
-    for (id, pos) in &mut world.query::<&Position>() {
+    for (id, pos) in &mut world.query::<With<Health, &Position>>() {
         if pos == target {
             debug!("ID: {:?} has reached its target.", id);
             to_remove.push(id);
@@ -39,6 +39,14 @@ pub fn system_remove_arrived(world: &mut World, target: &Position) -> usize {
         world.despawn(entity).unwrap();
     }
     removed
+}
+
+pub fn system_score(world: &World) -> usize {
+    world
+        .query::<&Score>()
+        .iter()
+        .map(|(_id, score)| score.0)
+        .sum::<i32>() as usize
 }
 
 pub fn system_units_left(world: &World) -> usize {

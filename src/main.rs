@@ -46,8 +46,8 @@ fn main() -> anyhow::Result<()> {
     let target = components::Position { x: 0, y: 0 };
     let mut world = World::new();
 
-    spawns::batch_spawn_units(&mut world, 500);
-    spawns::batch_spawn_towers(&mut world, 10);
+    spawns::batch_spawn_units(&mut world, config.units);
+    spawns::batch_spawn_towers(&mut world, config.towers);
 
     let mut motion_query =
         PreparedQuery::<(&mut components::Position, &components::Speed)>::default();
@@ -85,5 +85,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
+    let score = systems::system_score(&world);
+    info!("score: {}", score);
     Ok(())
 }
