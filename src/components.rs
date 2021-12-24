@@ -9,7 +9,10 @@ pub struct Position {
 // i32 is convenient for inflicting damages > health
 // checks cane be done using health >= 0
 #[derive(Debug)]
-pub struct Health(pub i32);
+pub struct Health {
+    pub value: i32,
+    pub max: i32,
+}
 
 // distance / simulation step
 #[derive(Debug)]

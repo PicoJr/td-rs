@@ -11,10 +11,7 @@ mod systems;
 use crate::config::get_config;
 use hecs::*;
 use macroquad::input::is_key_pressed;
-use macroquad::prelude::{
-    clear_background, draw_text, is_key_down, next_frame, screen_height, screen_width, set_camera,
-    set_default_camera, vec2, Camera2D, KeyCode, DARKGRAY, GREEN, RED, WHITE,
-};
+use macroquad::prelude::{clear_background, draw_text, is_key_down, next_frame, screen_height, screen_width, set_camera, set_default_camera, vec2, Camera2D, KeyCode, DARKGRAY, GREEN, WHITE, Color, get_fps};
 use macroquad::shapes::draw_circle;
 
 const TOWER_RADIUS: f32 = 10.0;
@@ -42,15 +39,17 @@ fn print_world_state(world: &mut World) {
 
 fn draw_world(world: &World) {
     let (center_x, center_y) = (0., 0.);
-    for (_id, position) in world
-        .query::<With<components::Health, &components::Position>>()
+    for (_id, (health, position)) in world
+        .query::<(&components::Health, &components::Position)>()
         .iter()
     {
+        let health_ratio = (health.value as f32 / health.max as f32).clamp(0f32, 1f32);
+        let color = Color::new(health_ratio, 0.0, 1.0 - health_ratio, 1.0f32);
         draw_circle(
             center_x + position.x as f32,
             center_y + position.y as f32,
             UNIT_RADIUS,
-            RED,
+            color,
         );
     }
     for (_id, position) in world
@@ -153,6 +152,7 @@ async fn main() -> anyhow::Result<()> {
 
         if !pause {
             systems::system_integrate_motion(&mut world, &mut motion_query, &target);
+            systems::system_remove_dead(&mut world);
             let _removed = systems::system_remove_arrived(&mut world, &target);
             systems::system_fire_at_closest(&mut world);
             let _units_left = systems::system_units_left(&world);
@@ -172,7 +172,8 @@ async fn main() -> anyhow::Result<()> {
         set_default_camera();
         draw_text(
             &format!(
-                "step: {}, zoom: {}, target: {:?}",
+                "fps: {} step: {}, zoom: {}, target: {:?}",
+                get_fps(),
                 step, zoom, camera_target
             ),
             20.0,

@@ -5,7 +5,7 @@ fn direction(movement: Distance) -> Distance {
 }
 
 fn manhattan_distance(pos: &Position, other_pos: &Position) -> Distance {
-    (pos.x - other_pos.y).abs() + (pos.y - other_pos.y).abs()
+    (pos.x - other_pos.x).abs() + (pos.y - other_pos.y).abs()
 }
 
 use hecs::{Entity, PreparedQuery, With, World};
@@ -30,6 +30,22 @@ pub fn system_remove_arrived(world: &mut World, target: &Position) -> usize {
     for (id, pos) in &mut world.query::<With<Health, &Position>>() {
         if pos == target {
             debug!("ID: {:?} has reached its target.", id);
+            to_remove.push(id);
+        }
+    }
+
+    let removed = to_remove.len();
+    for entity in to_remove {
+        world.despawn(entity).unwrap();
+    }
+    removed
+}
+
+pub fn system_remove_dead(world: &mut World) -> usize {
+    let mut to_remove: Vec<Entity> = Vec::new();
+    for (id, health) in &mut world.query::<&Health>() {
+        if health.value <= 0 {
+            debug!("ID: {:?} health is <= 0", id);
             to_remove.push(id);
         }
     }
@@ -72,14 +88,14 @@ pub fn system_fire_at_closest(world: &mut World) {
             let mut target_health = world.get_mut::<Health>(entity).unwrap();
 
             // Is target unit still alive?
-            if target_health.0 > 0 {
+            if target_health.value > 0 {
                 // apply damage
-                target_health.0 -= tower_damage.0;
+                target_health.value -= tower_damage.0;
                 debug!(
                     "Unit {:?} was damaged by {:?} for {:?} HP",
                     closest, tower_id, tower_damage.0
                 );
-                if target_health.0 <= 0 {
+                if target_health.value <= 0 {
                     // if this killed it, increase tower score
                     tower_score.0 += 1;
                     debug!("Unit {:?} was killed by tower {:?}!", entity, tower_id);
