@@ -11,11 +11,14 @@ mod systems;
 use crate::config::get_config;
 use hecs::*;
 use macroquad::prelude::{
-    clear_background, draw_text, next_frame, screen_height, screen_width, DARKGRAY, GREEN, RED,
-    WHITE,
+    clear_background, draw_text, is_key_down, next_frame, screen_height, screen_width, set_camera,
+    set_default_camera, vec2, Camera2D, KeyCode, DARKGRAY, GREEN, RED, WHITE,
 };
 use macroquad::shapes::draw_circle;
 use std::io;
+
+const TOWER_RADIUS: f32 = 10.0;
+const UNIT_RADIUS: f32 = 5.0;
 
 fn print_world_state(world: &mut World) {
     println!("\nEntity stats:");
@@ -38,8 +41,7 @@ fn print_world_state(world: &mut World) {
 }
 
 fn draw_world(world: &World) {
-    let (center_x, center_y) = (screen_width() / 2.0, screen_height() / 2.0);
-    // let (center_x, center_y) = (100f32, 100f32);
+    let (center_x, center_y) = (0., 0.);
     for (_id, position) in world
         .query::<With<components::Health, &components::Position>>()
         .iter()
@@ -47,7 +49,7 @@ fn draw_world(world: &World) {
         draw_circle(
             center_x + position.x as f32,
             center_y + position.y as f32,
-            10.0,
+            UNIT_RADIUS,
             RED,
         );
     }
@@ -58,7 +60,7 @@ fn draw_world(world: &World) {
         draw_circle(
             center_x + position.x as f32,
             center_y + position.y as f32,
-            10.0,
+            TOWER_RADIUS,
             GREEN,
         );
     }
@@ -70,6 +72,29 @@ enum Action {
     Continue,
 }
 
+enum CameraAction {
+    Zoom(f32),
+    Target(f32, f32),
+}
+
+fn read_camera_action() -> Option<CameraAction> {
+    if is_key_down(KeyCode::Left) {
+        Some(CameraAction::Target(-0.1, 0.0))
+    } else if is_key_down(KeyCode::Right) {
+        Some(CameraAction::Target(0.1, 0.0))
+    } else if is_key_down(KeyCode::Up) {
+        Some(CameraAction::Target(0.0, 0.1))
+    } else if is_key_down(KeyCode::Down) {
+        Some(CameraAction::Target(0.0, -0.1))
+    } else if is_key_down(KeyCode::J) {
+        Some(CameraAction::Zoom(0.9))
+    } else if is_key_down(KeyCode::K) {
+        Some(CameraAction::Zoom(1.1))
+    } else {
+        None
+    }
+}
+
 #[macroquad::main("TD")]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -78,6 +103,8 @@ async fn main() -> anyhow::Result<()> {
 
     let target = components::Position { x: 0, y: 0 };
     let mut world = World::new();
+    let mut zoom = 0.001;
+    let mut camera_target = (0., 0.);
 
     spawns::batch_spawn_units(&mut world, config.units);
     spawns::batch_spawn_towers(&mut world, config.towers);
@@ -87,6 +114,17 @@ async fn main() -> anyhow::Result<()> {
     let mut step: usize = 0;
 
     loop {
+        match read_camera_action() {
+            None => {}
+            Some(CameraAction::Zoom(z)) => {
+                zoom *= z;
+            }
+            Some(CameraAction::Target(t0, t1)) => {
+                camera_target.0 += t0;
+                camera_target.1 += t1;
+            }
+        }
+
         let action = if config.interactive {
             println!("\n'Enter' to continue simulation, '?' for entity list, 'q' to quit");
             let mut input = String::new();
@@ -109,7 +147,7 @@ async fn main() -> anyhow::Result<()> {
                 systems::system_fire_at_closest(&mut world);
                 let units_left = systems::system_units_left(&world);
                 if units_left == 0 {
-                    break;
+                    spawns::batch_spawn_units(&mut world, config.units);
                 }
             }
             Action::Print => {
@@ -119,8 +157,25 @@ async fn main() -> anyhow::Result<()> {
                 break;
             }
         }
+        set_camera(&Camera2D {
+            target: vec2(camera_target.0, camera_target.1),
+            zoom: vec2(zoom, zoom * screen_width() / screen_height()),
+            offset: vec2(camera_target.0, camera_target.1),
+            ..Default::default()
+        });
         draw_world(&world);
-        draw_text(&format!("step: {}", step), 20.0, 20.0, 30.0, DARKGRAY);
+
+        set_default_camera();
+        draw_text(
+            &format!(
+                "step: {}, zoom: {}, target: {:?}",
+                step, zoom, camera_target
+            ),
+            20.0,
+            20.0,
+            30.0,
+            DARKGRAY,
+        );
         next_frame().await;
         step += 1;
     }
