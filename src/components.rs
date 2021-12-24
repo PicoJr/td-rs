@@ -28,3 +28,8 @@ pub struct Range(pub Distance);
 
 #[derive(Debug)]
 pub struct Score(pub i32);
+
+#[derive(Debug)]
+pub struct Target {
+    pub(crate) position: Option<Position>,
+}

@@ -11,7 +11,11 @@ mod systems;
 use crate::config::get_config;
 use hecs::*;
 use macroquad::input::is_key_pressed;
-use macroquad::prelude::{clear_background, draw_text, is_key_down, next_frame, screen_height, screen_width, set_camera, set_default_camera, vec2, Camera2D, KeyCode, DARKGRAY, GREEN, WHITE, Color, get_fps};
+use macroquad::prelude::{
+    clear_background, draw_line, draw_text, get_fps, is_key_down, next_frame, screen_height,
+    screen_width, set_camera, set_default_camera, vec2, Camera2D, Color, KeyCode, DARKGRAY, GREEN,
+    RED, WHITE,
+};
 use macroquad::shapes::draw_circle;
 
 const TOWER_RADIUS: f32 = 10.0;
@@ -24,15 +28,16 @@ fn print_world_state(world: &mut World) {
     {
         println!("(unit) ID: {:?}, {:?} {:?}", id, health, position);
     }
-    for (id, (position, damage, range, score)) in &mut world.query::<(
+    for (id, (position, damage, range, score, target)) in &mut world.query::<(
         &components::Position,
         &components::Damage,
         &components::Range,
         &components::Score,
+        &components::Target,
     )>() {
         println!(
-            "(tower) ID: {:?}, {:?} {:?} {:?} {:?}",
-            id, position, damage, range, score
+            "(tower) ID: {:?}, {:?} {:?} {:?} {:?} {:?}",
+            id, position, damage, range, score, target,
         );
     }
 }
@@ -62,6 +67,21 @@ fn draw_world(world: &World) {
             TOWER_RADIUS,
             GREEN,
         );
+    }
+    for (_id, (target, position)) in world
+        .query::<(&components::Target, &components::Position)>()
+        .iter()
+    {
+        if let Some(target_position) = &target.position {
+            draw_line(
+                center_x + target_position.x as f32,
+                center_y + target_position.y as f32,
+                center_x + position.x as f32,
+                center_y + position.y as f32,
+                5.0,
+                RED,
+            );
+        }
     }
 }
 
@@ -174,7 +194,9 @@ async fn main() -> anyhow::Result<()> {
             &format!(
                 "fps: {} step: {}, zoom: {}, target: {:?}",
                 get_fps(),
-                step, zoom, camera_target
+                step,
+                zoom,
+                camera_target
             ),
             20.0,
             20.0,

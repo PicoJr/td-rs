@@ -1,4 +1,4 @@
-use crate::components::{Damage, Distance, Health, Position, Range, Score, Speed};
+use crate::components::{Damage, Distance, Health, Position, Range, Score, Speed, Target};
 
 fn direction(movement: Distance) -> Distance {
     movement.clamp(-1, 1)
@@ -71,8 +71,8 @@ pub fn system_units_left(world: &World) -> usize {
 
 // In this system entities find the closest entity and fire at them
 pub fn system_fire_at_closest(world: &mut World) {
-    for (tower_id, (tower_position, tower_damage, tower_range, tower_score)) in
-        &mut world.query::<With<Damage, (&Position, &Damage, &Range, &mut Score)>>()
+    for (tower_id, (tower_position, tower_damage, tower_range, tower_score, tower_target)) in
+        &mut world.query::<With<Damage, (&Position, &Damage, &Range, &mut Score, &mut Target)>>()
     {
         let closest = world
             .query::<With<Health, &Position>>()
@@ -84,22 +84,29 @@ pub fn system_fire_at_closest(world: &mut World) {
             .min_by_key(|(_, target_position)| manhattan_distance(tower_position, target_position))
             .map(|(entity, _pos)| entity);
 
-        if let Some(entity) = closest {
-            let mut target_health = world.get_mut::<Health>(entity).unwrap();
+        match closest {
+            Some(entity) => {
+                let mut target_health = world.get_mut::<Health>(entity).unwrap();
+                let target_position = world.get::<Position>(entity).unwrap();
 
-            // Is target unit still alive?
-            if target_health.value > 0 {
-                // apply damage
-                target_health.value -= tower_damage.0;
-                debug!(
-                    "Unit {:?} was damaged by {:?} for {:?} HP",
-                    closest, tower_id, tower_damage.0
-                );
-                if target_health.value <= 0 {
-                    // if this killed it, increase tower score
-                    tower_score.0 += 1;
-                    debug!("Unit {:?} was killed by tower {:?}!", entity, tower_id);
+                if target_health.value > 0 {
+                    target_health.value -= tower_damage.0;
+                    debug!(
+                        "Unit {:?} was damaged by {:?} for {:?} HP",
+                        closest, tower_id, tower_damage.0
+                    );
+                    if target_health.value <= 0 {
+                        tower_score.0 += 1;
+                        debug!("Unit {:?} was killed by tower {:?}!", entity, tower_id);
+                    }
+                    tower_target.position = Some(Position {
+                        x: target_position.x,
+                        y: target_position.y,
+                    });
                 }
+            }
+            None => {
+                tower_target.position = None;
             }
         }
     }
