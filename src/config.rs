@@ -2,7 +2,7 @@ use clap::{App, Arg};
 use std::str::FromStr;
 
 pub struct Config {
-    pub(crate) interactive: bool,
+    pub(crate) paused: bool,
     pub(crate) towers: usize,
     pub(crate) units: usize,
 }
@@ -10,7 +10,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            interactive: false,
+            paused: false,
             towers: 10,
             units: 10,
         }
@@ -23,11 +23,11 @@ pub fn get_app() -> App<'static, 'static> {
         .author(crate_authors!())
         .about("Does awesome things")
         .arg(
-            Arg::with_name("interactive")
-                .short("i")
+            Arg::with_name("paused")
+                .long("paused")
                 .takes_value(false)
                 .required(false)
-                .help("prompt between simulation steps"),
+                .help("start with simulation paused"),
         )
         .arg(
             Arg::with_name("towers")
@@ -45,7 +45,7 @@ pub fn get_app() -> App<'static, 'static> {
 
 pub fn get_config() -> anyhow::Result<Config> {
     let matches = get_app().get_matches();
-    let interactive = matches.is_present("interactive");
+    let paused = matches.is_present("paused");
     let towers = match matches.value_of("towers") {
         Some(t) => usize::from_str(t)?,
         None => Config::default().towers,
@@ -55,7 +55,7 @@ pub fn get_config() -> anyhow::Result<Config> {
         None => Config::default().units,
     };
     Ok(Config {
-        interactive,
+        paused,
         towers,
         units,
     })

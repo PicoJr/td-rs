@@ -10,12 +10,12 @@ mod systems;
 
 use crate::config::get_config;
 use hecs::*;
+use macroquad::input::is_key_pressed;
 use macroquad::prelude::{
     clear_background, draw_text, is_key_down, next_frame, screen_height, screen_width, set_camera,
     set_default_camera, vec2, Camera2D, KeyCode, DARKGRAY, GREEN, RED, WHITE,
 };
 use macroquad::shapes::draw_circle;
-use std::io;
 
 const TOWER_RADIUS: f32 = 10.0;
 const UNIT_RADIUS: f32 = 5.0;
@@ -68,8 +68,8 @@ fn draw_world(world: &World) {
 
 enum Action {
     Quit,
-    Print,
-    Continue,
+    TogglePause,
+    Spawn,
 }
 
 enum CameraAction {
@@ -95,6 +95,18 @@ fn read_camera_action() -> Option<CameraAction> {
     }
 }
 
+fn read_simulation_action() -> Option<Action> {
+    if is_key_pressed(KeyCode::Space) {
+        Some(Action::TogglePause)
+    } else if is_key_pressed(KeyCode::R) {
+        Some(Action::Spawn)
+    } else if is_key_pressed(KeyCode::Q) {
+        Some(Action::Quit)
+    } else {
+        None
+    }
+}
+
 #[macroquad::main("TD")]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -105,6 +117,7 @@ async fn main() -> anyhow::Result<()> {
     let mut world = World::new();
     let mut zoom = 0.001;
     let mut camera_target = (0., 0.);
+    let mut pause: bool = config.paused;
 
     spawns::batch_spawn_units(&mut world, config.units);
     spawns::batch_spawn_towers(&mut world, config.towers);
@@ -124,39 +137,30 @@ async fn main() -> anyhow::Result<()> {
                 camera_target.1 += t1;
             }
         }
-
-        let action = if config.interactive {
-            println!("\n'Enter' to continue simulation, '?' for entity list, 'q' to quit");
-            let mut input = String::new();
-            io::stdin().read_line(&mut input).unwrap();
-            match input.trim() {
-                "" => Action::Continue,
-                "q" => Action::Quit,
-                "?" => Action::Print,
-                _ => Action::Continue,
-            }
-        } else {
-            Action::Continue
-        };
-        clear_background(WHITE);
-        match action {
-            Action::Continue => {
-                // Run all simulation systems:
-                systems::system_integrate_motion(&mut world, &mut motion_query, &target);
-                let _removed = systems::system_remove_arrived(&mut world, &target);
-                systems::system_fire_at_closest(&mut world);
-                let units_left = systems::system_units_left(&world);
-                if units_left == 0 {
-                    spawns::batch_spawn_units(&mut world, config.units);
-                }
-            }
-            Action::Print => {
-                print_world_state(&mut world);
-            }
-            Action::Quit => {
+        match read_simulation_action() {
+            Some(Action::Quit) => {
                 break;
             }
+            Some(Action::TogglePause) => {
+                pause = !pause;
+                print_world_state(&mut world);
+            }
+            Some(Action::Spawn) => {
+                spawns::batch_spawn_units(&mut world, config.units);
+            }
+            None => {}
+        };
+
+        if !pause {
+            systems::system_integrate_motion(&mut world, &mut motion_query, &target);
+            let _removed = systems::system_remove_arrived(&mut world, &target);
+            systems::system_fire_at_closest(&mut world);
+            let _units_left = systems::system_units_left(&world);
+            step += 1;
         }
+
+        clear_background(WHITE);
+
         set_camera(&Camera2D {
             target: vec2(camera_target.0, camera_target.1),
             zoom: vec2(zoom, zoom * screen_width() / screen_height()),
@@ -177,7 +181,6 @@ async fn main() -> anyhow::Result<()> {
             DARKGRAY,
         );
         next_frame().await;
-        step += 1;
     }
     let score = systems::system_score(&world);
     info!("score: {}", score);
