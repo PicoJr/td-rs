@@ -1,5 +1,6 @@
 use crate::components::{Damage, Health, Position, Range, Score, Speed, Target};
 use hecs::World;
+use macroquad::prelude::Vec2;
 use rand::{thread_rng, Rng};
 
 pub fn batch_spawn_units(world: &mut World, units: usize) {
@@ -34,4 +35,18 @@ pub fn batch_spawn_towers(world: &mut World, towers: usize) {
         (position, damage, range, score, target)
     });
     world.spawn_batch(to_spawn);
+}
+
+pub fn spawn_tower(world: &mut World, position: &Vec2) {
+    let mut rng = thread_rng();
+    let position = Position {
+        x: position.x as i32,
+        y: position.y as i32,
+    };
+    let damage = Damage(rng.gen_range(3..5));
+    let range = Range(rng.gen_range(300..500));
+    let score = Score(0);
+    let target = Target { position: None };
+
+    world.spawn((position, damage, range, score, target));
 }

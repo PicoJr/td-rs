@@ -10,11 +10,11 @@ mod systems;
 
 use crate::config::get_config;
 use hecs::*;
-use macroquad::input::is_key_pressed;
+use macroquad::input::{is_key_pressed, is_mouse_button_pressed};
 use macroquad::prelude::{
-    clear_background, draw_line, draw_text, get_fps, is_key_down, next_frame, screen_height,
-    screen_width, set_camera, set_default_camera, vec2, Camera2D, Color, KeyCode, DARKGRAY, GREEN,
-    RED, WHITE,
+    clear_background, draw_line, draw_text, get_fps, is_key_down, mouse_position, next_frame,
+    screen_height, screen_width, set_camera, set_default_camera, vec2, Camera2D, Color, KeyCode,
+    MouseButton, Vec2, DARKGRAY, GREEN, RED, WHITE,
 };
 use macroquad::shapes::draw_circle;
 
@@ -89,6 +89,7 @@ enum Action {
     Quit,
     TogglePause,
     Spawn,
+    Build(f32, f32),
 }
 
 enum CameraAction {
@@ -114,13 +115,16 @@ fn read_camera_action() -> Option<CameraAction> {
     }
 }
 
-fn read_simulation_action() -> Option<Action> {
+fn read_simulation_action(camera: &Camera2D) -> Option<Action> {
     if is_key_pressed(KeyCode::Space) {
         Some(Action::TogglePause)
     } else if is_key_pressed(KeyCode::R) {
         Some(Action::Spawn)
     } else if is_key_pressed(KeyCode::Q) {
         Some(Action::Quit)
+    } else if is_mouse_button_pressed(MouseButton::Left) {
+        let world_position = camera.screen_to_world(Vec2::from(mouse_position()));
+        Some(Action::Build(world_position.x, world_position.y))
     } else {
         None
     }
@@ -137,6 +141,7 @@ async fn main() -> anyhow::Result<()> {
     let mut zoom = 0.001;
     let mut camera_target = (0., 0.);
     let mut pause: bool = config.paused;
+    let mut camera: Camera2D;
 
     spawns::batch_spawn_units(&mut world, config.units);
     spawns::batch_spawn_towers(&mut world, config.towers);
@@ -156,7 +161,15 @@ async fn main() -> anyhow::Result<()> {
                 camera_target.1 += t1;
             }
         }
-        match read_simulation_action() {
+
+        camera = Camera2D {
+            target: vec2(camera_target.0, camera_target.1),
+            zoom: vec2(zoom, zoom * screen_width() / screen_height()),
+            offset: vec2(camera_target.0, camera_target.1),
+            ..Default::default()
+        };
+
+        match read_simulation_action(&camera) {
             Some(Action::Quit) => {
                 break;
             }
@@ -166,6 +179,9 @@ async fn main() -> anyhow::Result<()> {
             }
             Some(Action::Spawn) => {
                 spawns::batch_spawn_units(&mut world, config.units);
+            }
+            Some(Action::Build(build_x, build_y)) => {
+                spawns::spawn_tower(&mut world, &Vec2::new(build_x, build_y));
             }
             None => {}
         };
@@ -181,12 +197,7 @@ async fn main() -> anyhow::Result<()> {
 
         clear_background(WHITE);
 
-        set_camera(&Camera2D {
-            target: vec2(camera_target.0, camera_target.1),
-            zoom: vec2(zoom, zoom * screen_width() / screen_height()),
-            offset: vec2(camera_target.0, camera_target.1),
-            ..Default::default()
-        });
+        set_camera(&camera);
         draw_world(&world);
 
         set_default_camera();
