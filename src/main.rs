@@ -14,7 +14,8 @@ use crate::config::get_config;
 use hecs::*;
 use macroquad::prelude::{
     clear_background, draw_line, draw_text, get_fps, next_frame, screen_height, screen_width,
-    set_camera, set_default_camera, vec2, Camera2D, Color, Vec2, DARKGRAY, GREEN, RED, WHITE,
+    set_camera, set_default_camera, vec2, Camera2D, Color, Vec2, BLACK, DARKGRAY, GREEN, RED,
+    WHITE,
 };
 use macroquad::shapes::{draw_circle, draw_rectangle};
 
@@ -81,13 +82,29 @@ fn draw_world(world: &World) {
     }
 }
 
+fn draw_waypoints(waypoints: &[components::Position]) {
+    for (p0, p1) in waypoints.iter().zip(waypoints.iter().skip(1)) {
+        draw_line(
+            p0.x as f32,
+            p0.y as f32,
+            p1.x as f32,
+            p1.y as f32,
+            LASER_WIDTH,
+            BLACK,
+        );
+    }
+}
+
 #[macroquad::main("TD")]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let config = get_config()?;
 
-    let target = components::Position { x: 0, y: 0 };
+    let waypoints = vec![
+        components::Position { x: -1000, y: 1000 },
+        components::Position { x: 0, y: 0 },
+    ];
     let mut world = World::new();
     let mut zoom = 0.001;
     let mut camera_target = (0., 0.);
@@ -98,9 +115,13 @@ async fn main() -> anyhow::Result<()> {
     spawns::batch_spawn_units(&mut world, config.units);
     spawns::batch_spawn_towers(&mut world, config.towers);
 
-    let mut motion_query =
-        PreparedQuery::<(&mut components::Position, &components::Speed)>::default();
+    let mut motion_query = PreparedQuery::<(
+        &mut components::Position,
+        &mut components::Waypoint,
+        &components::Speed,
+    )>::default();
     let mut step: usize = 0;
+    let mut arrived: usize = 0;
 
     loop {
         match read_camera_action() {
@@ -144,11 +165,14 @@ async fn main() -> anyhow::Result<()> {
         };
 
         if !pause {
-            systems::system_integrate_motion(&mut world, &mut motion_query, &target);
+            systems::system_integrate_motion(&mut world, &mut motion_query, waypoints.as_slice());
             systems::system_remove_dead(&mut world);
-            let _removed = systems::system_remove_arrived(&mut world, &target);
+            let removed = systems::system_remove_arrived(
+                &mut world,
+                waypoints.last().expect("waypoints should not be empty"),
+            );
+            arrived += removed;
             systems::system_fire_at_closest(&mut world);
-            let _units_left = systems::system_units_left(&world);
             step += 1;
         }
 
@@ -156,11 +180,20 @@ async fn main() -> anyhow::Result<()> {
 
         set_camera(&camera);
         draw_world(&world);
+        if debug {
+            draw_waypoints(waypoints.as_slice());
+        }
 
         set_default_camera();
         if debug {
             let units = systems::system_units_left(&world);
-            draw_text(&format!("units {}", units), 20.0, 20.0, 30.0, DARKGRAY);
+            draw_text(
+                &format!("units: {}, arrived: {}", units, arrived),
+                20.0,
+                20.0,
+                30.0,
+                DARKGRAY,
+            );
             draw_text(
                 &format!(
                     "fps: {} step: {} zoom: {} camera: {:?}",

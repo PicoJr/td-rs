@@ -1,4 +1,4 @@
-use crate::components::{Damage, Health, Position, Range, Score, Speed, Target};
+use crate::components::{Damage, Health, Position, Range, Score, Speed, Target, Waypoint};
 use hecs::World;
 use macroquad::prelude::Vec2;
 use rand::{thread_rng, Rng};
@@ -16,7 +16,8 @@ pub fn batch_spawn_units(world: &mut World, units: usize) {
             value: health_value,
             max: health_value,
         };
-        (position, speed, health)
+        let waypoint = Waypoint { index: 0 };
+        (position, speed, health, waypoint)
     });
     world.spawn_batch(to_spawn);
 }

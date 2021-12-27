@@ -33,3 +33,8 @@ pub struct Score(pub i32);
 pub struct Target {
     pub(crate) position: Option<Position>,
 }
+
+#[derive(Debug)]
+pub struct Waypoint {
+    pub index: usize,
+}

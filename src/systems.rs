@@ -1,4 +1,6 @@
-use crate::components::{Damage, Distance, Health, Position, Range, Score, Speed, Target};
+use crate::components::{
+    Damage, Distance, Health, Position, Range, Score, Speed, Target, Waypoint,
+};
 
 fn direction(movement: Distance) -> Distance {
     movement.clamp(-1, 1)
@@ -12,16 +14,21 @@ use hecs::{Entity, PreparedQuery, With, World};
 
 pub fn system_integrate_motion(
     world: &mut World,
-    query: &mut PreparedQuery<(&mut Position, &Speed)>,
-    target: &Position,
+    query: &mut PreparedQuery<(&mut Position, &mut Waypoint, &Speed)>,
+    waypoints: &[Position],
 ) {
-    for (_id, (pos, spd)) in query.query_mut(world) {
-        let dx: i32 = target.x - pos.x;
-        let dy: i32 = target.y - pos.y;
-        let dx = direction(dx) * dx.abs().min(spd.0);
-        let dy = direction(dy) * dy.abs().min(spd.0);
-        pos.x += dx;
-        pos.y += dy;
+    for (_id, (pos, waypoint, spd)) in query.query_mut(world) {
+        if let Some(target) = waypoints.get(waypoint.index) {
+            let dx: i32 = target.x - pos.x;
+            let dy: i32 = target.y - pos.y;
+            let dx = direction(dx) * dx.abs().min(spd.0);
+            let dy = direction(dy) * dy.abs().min(spd.0);
+            pos.x += dx;
+            pos.y += dy;
+            if pos == target {
+                waypoint.index += 1;
+            }
+        }
     }
 }
 
