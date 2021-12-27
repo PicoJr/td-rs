@@ -3,23 +3,24 @@ extern crate log;
 #[macro_use]
 extern crate clap;
 
+mod actions;
 mod components;
 mod config;
 mod spawns;
 mod systems;
 
+use crate::actions::{read_camera_action, read_simulation_action, Action, CameraAction};
 use crate::config::get_config;
 use hecs::*;
-use macroquad::input::{is_key_pressed, is_mouse_button_pressed};
 use macroquad::prelude::{
-    clear_background, draw_line, draw_text, get_fps, is_key_down, mouse_position, next_frame,
-    screen_height, screen_width, set_camera, set_default_camera, vec2, Camera2D, Color, KeyCode,
-    MouseButton, Vec2, DARKGRAY, GREEN, RED, WHITE,
+    clear_background, draw_line, draw_text, get_fps, next_frame, screen_height, screen_width,
+    set_camera, set_default_camera, vec2, Camera2D, Color, Vec2, DARKGRAY, GREEN, RED, WHITE,
 };
-use macroquad::shapes::draw_circle;
+use macroquad::shapes::{draw_circle, draw_rectangle};
 
 const TOWER_RADIUS: f32 = 10.0;
 const UNIT_RADIUS: f32 = 5.0;
+const LASER_WIDTH: f32 = 2.0;
 
 fn print_world_state(world: &mut World) {
     println!("\nEntity stats:");
@@ -43,27 +44,22 @@ fn print_world_state(world: &mut World) {
 }
 
 fn draw_world(world: &World) {
-    let (center_x, center_y) = (0., 0.);
     for (_id, (health, position)) in world
         .query::<(&components::Health, &components::Position)>()
         .iter()
     {
         let health_ratio = (health.value as f32 / health.max as f32).clamp(0f32, 1f32);
         let color = Color::new(health_ratio, 0.0, 1.0 - health_ratio, 1.0f32);
-        draw_circle(
-            center_x + position.x as f32,
-            center_y + position.y as f32,
-            UNIT_RADIUS,
-            color,
-        );
+        draw_circle(position.x as f32, position.y as f32, UNIT_RADIUS, color);
     }
     for (_id, position) in world
         .query::<With<components::Damage, &components::Position>>()
         .iter()
     {
-        draw_circle(
-            center_x + position.x as f32,
-            center_y + position.y as f32,
+        draw_rectangle(
+            position.x as f32 - TOWER_RADIUS * 0.5,
+            position.y as f32 - TOWER_RADIUS * 0.5,
+            TOWER_RADIUS,
             TOWER_RADIUS,
             GREEN,
         );
@@ -74,59 +70,14 @@ fn draw_world(world: &World) {
     {
         if let Some(target_position) = &target.position {
             draw_line(
-                center_x + target_position.x as f32,
-                center_y + target_position.y as f32,
-                center_x + position.x as f32,
-                center_y + position.y as f32,
-                5.0,
+                target_position.x as f32,
+                target_position.y as f32,
+                position.x as f32,
+                position.y as f32,
+                LASER_WIDTH,
                 RED,
             );
         }
-    }
-}
-
-enum Action {
-    Quit,
-    TogglePause,
-    Spawn,
-    Build(f32, f32),
-}
-
-enum CameraAction {
-    Zoom(f32),
-    Target(f32, f32),
-}
-
-fn read_camera_action() -> Option<CameraAction> {
-    if is_key_down(KeyCode::Left) {
-        Some(CameraAction::Target(-0.1, 0.0))
-    } else if is_key_down(KeyCode::Right) {
-        Some(CameraAction::Target(0.1, 0.0))
-    } else if is_key_down(KeyCode::Up) {
-        Some(CameraAction::Target(0.0, 0.1))
-    } else if is_key_down(KeyCode::Down) {
-        Some(CameraAction::Target(0.0, -0.1))
-    } else if is_key_down(KeyCode::J) {
-        Some(CameraAction::Zoom(0.9))
-    } else if is_key_down(KeyCode::K) {
-        Some(CameraAction::Zoom(1.1))
-    } else {
-        None
-    }
-}
-
-fn read_simulation_action(camera: &Camera2D) -> Option<Action> {
-    if is_key_pressed(KeyCode::Space) {
-        Some(Action::TogglePause)
-    } else if is_key_pressed(KeyCode::R) {
-        Some(Action::Spawn)
-    } else if is_key_pressed(KeyCode::Q) {
-        Some(Action::Quit)
-    } else if is_mouse_button_pressed(MouseButton::Left) {
-        let world_position = camera.screen_to_world(Vec2::from(mouse_position()));
-        Some(Action::Build(world_position.x, world_position.y))
-    } else {
-        None
     }
 }
 
@@ -141,6 +92,7 @@ async fn main() -> anyhow::Result<()> {
     let mut zoom = 0.001;
     let mut camera_target = (0., 0.);
     let mut pause: bool = config.paused;
+    let mut debug: bool = false;
     let mut camera: Camera2D;
 
     spawns::batch_spawn_units(&mut world, config.units);
@@ -175,10 +127,15 @@ async fn main() -> anyhow::Result<()> {
             }
             Some(Action::TogglePause) => {
                 pause = !pause;
-                print_world_state(&mut world);
             }
             Some(Action::Spawn) => {
                 spawns::batch_spawn_units(&mut world, config.units);
+            }
+            Some(Action::ToggleDebug) => {
+                debug = !debug;
+            }
+            Some(Action::PrintState) => {
+                print_world_state(&mut world);
             }
             Some(Action::Build(build_x, build_y)) => {
                 spawns::spawn_tower(&mut world, &Vec2::new(build_x, build_y));
@@ -201,19 +158,23 @@ async fn main() -> anyhow::Result<()> {
         draw_world(&world);
 
         set_default_camera();
-        draw_text(
-            &format!(
-                "fps: {} step: {}, zoom: {}, target: {:?}",
-                get_fps(),
-                step,
-                zoom,
-                camera_target
-            ),
-            20.0,
-            20.0,
-            30.0,
-            DARKGRAY,
-        );
+        if debug {
+            let units = systems::system_units_left(&world);
+            draw_text(&format!("units {}", units), 20.0, 20.0, 30.0, DARKGRAY);
+            draw_text(
+                &format!(
+                    "fps: {} step: {} zoom: {} camera: {:?}",
+                    get_fps(),
+                    step,
+                    zoom,
+                    camera_target
+                ),
+                20.0,
+                40.0,
+                30.0,
+                DARKGRAY,
+            );
+        }
         next_frame().await;
     }
     let score = systems::system_score(&world);
