@@ -6,7 +6,7 @@ fn direction(movement: Distance) -> Distance {
     movement.clamp(-1, 1)
 }
 
-fn manhattan_distance(pos: &Position, other_pos: &Position) -> Distance {
+pub(crate) fn manhattan_distance(pos: &Position, other_pos: &Position) -> Distance {
     (pos.x - other_pos.x).abs() + (pos.y - other_pos.y).abs()
 }
 

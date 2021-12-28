@@ -1,5 +1,6 @@
 use crate::components::{Damage, Health, Position, Range, Score, Speed, Target, Waypoint};
-use hecs::World;
+use crate::systems::manhattan_distance;
+use hecs::{With, World};
 use macroquad::prelude::Vec2;
 use rand::{thread_rng, Rng};
 
@@ -50,4 +51,20 @@ pub fn spawn_tower(world: &mut World, position: &Vec2) {
     let target = Target { position: None };
 
     world.spawn((position, damage, range, score, target));
+}
+
+pub fn remove_tower(world: &mut World, position: &Vec2) {
+    let remove_position = Position {
+        x: position.x as i32,
+        y: position.y as i32,
+    };
+    let closest_entity_to_position = world
+        .query::<With<Damage, &Position>>()
+        .iter()
+        .filter(|(_id, p)| manhattan_distance(p, &remove_position) < 10i32)
+        .min_by_key(|(_id, p)| manhattan_distance(p, &remove_position))
+        .map(|(id, _p)| id);
+    if let Some(id) = closest_entity_to_position {
+        world.despawn(id).unwrap();
+    }
 }

@@ -9,13 +9,12 @@ mod config;
 mod spawns;
 mod systems;
 
-use crate::actions::{read_camera_action, read_simulation_action, Action, CameraAction};
+use crate::actions::{read_camera_action, read_simulation_action, Action, CameraAction, Mode};
 use crate::config::get_config;
 use hecs::*;
 use macroquad::prelude::{
     clear_background, draw_line, draw_text, get_fps, next_frame, screen_height, screen_width,
-    set_camera, set_default_camera, vec2, Camera2D, Color, Vec2, BLACK, DARKGRAY, GREEN, RED,
-    WHITE,
+    set_camera, set_default_camera, vec2, Camera2D, Color, BLACK, DARKGRAY, GREEN, RED, WHITE,
 };
 use macroquad::shapes::{draw_circle, draw_rectangle};
 
@@ -115,6 +114,7 @@ async fn main() -> anyhow::Result<()> {
     let mut pause: bool = config.paused;
     let mut debug: bool = false;
     let mut camera: Camera2D;
+    let mut mode: Mode = Mode::View;
 
     spawns::batch_spawn_units(&mut world, config.units, start);
     spawns::batch_spawn_towers(&mut world, config.towers);
@@ -146,7 +146,7 @@ async fn main() -> anyhow::Result<()> {
             ..Default::default()
         };
 
-        match read_simulation_action(&camera) {
+        match read_simulation_action(&camera, &mode) {
             Some(Action::Quit) => {
                 break;
             }
@@ -162,8 +162,16 @@ async fn main() -> anyhow::Result<()> {
             Some(Action::PrintState) => {
                 print_world_state(&mut world);
             }
-            Some(Action::Build(build_x, build_y)) => {
-                spawns::spawn_tower(&mut world, &Vec2::new(build_x, build_y));
+            Some(Action::Build(build_position)) => {
+                spawns::spawn_tower(&mut world, &build_position);
+            }
+            Some(Action::View(_view_position)) => {}
+            Some(Action::Remove(remove_position)) => {
+                println!("remove tower at {:?}", remove_position);
+                spawns::remove_tower(&mut world, &remove_position);
+            }
+            Some(Action::ChangeMode(new_mode)) => {
+                mode = new_mode;
             }
             None => {}
         };
@@ -189,7 +197,7 @@ async fn main() -> anyhow::Result<()> {
         if debug {
             let units = systems::system_units_left(&world);
             draw_text(
-                &format!("units: {}, arrived: {}", units, arrived),
+                &format!("units: {}, arrived: {}, mode: {:?}", units, arrived, mode),
                 20.0,
                 20.0,
                 30.0,
