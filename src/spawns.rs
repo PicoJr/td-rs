@@ -3,12 +3,12 @@ use hecs::World;
 use macroquad::prelude::Vec2;
 use rand::{thread_rng, Rng};
 
-pub fn batch_spawn_units(world: &mut World, units: usize) {
+pub fn batch_spawn_units(world: &mut World, units: usize, spawn_position: &Position) {
     let mut rng = thread_rng();
     let to_spawn = (0..units).map(|_| {
         let position = Position {
-            x: rng.gen_range(-1000..1000),
-            y: rng.gen_range(-1000..1000),
+            x: spawn_position.x + rng.gen_range(-1000..1000),
+            y: spawn_position.y + rng.gen_range(-1000..1000),
         };
         let speed = Speed(rng.gen_range(1..5));
         let health_value: i32 = rng.gen_range(30..200);

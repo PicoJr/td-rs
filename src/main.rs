@@ -22,6 +22,7 @@ use macroquad::shapes::{draw_circle, draw_rectangle};
 const TOWER_RADIUS: f32 = 10.0;
 const UNIT_RADIUS: f32 = 5.0;
 const LASER_WIDTH: f32 = 2.0;
+const WAYPOINTS_WIDTH: f32 = 2.0;
 
 fn print_world_state(world: &mut World) {
     println!("\nEntity stats:");
@@ -89,7 +90,7 @@ fn draw_waypoints(waypoints: &[components::Position]) {
             p0.y as f32,
             p1.x as f32,
             p1.y as f32,
-            LASER_WIDTH,
+            WAYPOINTS_WIDTH,
             BLACK,
         );
     }
@@ -105,6 +106,9 @@ async fn main() -> anyhow::Result<()> {
         components::Position { x: -1000, y: 1000 },
         components::Position { x: 0, y: 0 },
     ];
+    let start = waypoints.first().expect("waypoints not empty");
+    let end = waypoints.last().expect("waypoints not empty");
+
     let mut world = World::new();
     let mut zoom = 0.001;
     let mut camera_target = (0., 0.);
@@ -112,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
     let mut debug: bool = false;
     let mut camera: Camera2D;
 
-    spawns::batch_spawn_units(&mut world, config.units);
+    spawns::batch_spawn_units(&mut world, config.units, start);
     spawns::batch_spawn_towers(&mut world, config.towers);
 
     let mut motion_query = PreparedQuery::<(
@@ -150,7 +154,7 @@ async fn main() -> anyhow::Result<()> {
                 pause = !pause;
             }
             Some(Action::Spawn) => {
-                spawns::batch_spawn_units(&mut world, config.units);
+                spawns::batch_spawn_units(&mut world, config.units, start);
             }
             Some(Action::ToggleDebug) => {
                 debug = !debug;
@@ -167,10 +171,7 @@ async fn main() -> anyhow::Result<()> {
         if !pause {
             systems::system_integrate_motion(&mut world, &mut motion_query, waypoints.as_slice());
             systems::system_remove_dead(&mut world);
-            let removed = systems::system_remove_arrived(
-                &mut world,
-                waypoints.last().expect("waypoints should not be empty"),
-            );
+            let removed = systems::system_remove_arrived(&mut world, end);
             arrived += removed;
             systems::system_fire_at_closest(&mut world);
             step += 1;
