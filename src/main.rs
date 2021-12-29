@@ -13,8 +13,9 @@ use crate::actions::{read_camera_action, read_simulation_action, Action, CameraA
 use crate::config::get_config;
 use hecs::*;
 use macroquad::prelude::{
-    clear_background, draw_line, draw_text, get_fps, next_frame, screen_height, screen_width,
-    set_camera, set_default_camera, vec2, Camera2D, Color, BLACK, DARKGRAY, GREEN, RED, WHITE,
+    clear_background, draw_line, draw_rectangle_lines, draw_text, get_fps, next_frame,
+    screen_height, screen_width, set_camera, set_default_camera, vec2, Camera2D, Color, Vec2,
+    BLACK, DARKGRAY, GREEN, RED, WHITE,
 };
 use macroquad::shapes::{draw_circle, draw_rectangle};
 
@@ -22,6 +23,7 @@ const TOWER_RADIUS: f32 = 10.0;
 const UNIT_RADIUS: f32 = 5.0;
 const LASER_WIDTH: f32 = 2.0;
 const WAYPOINTS_WIDTH: f32 = 2.0;
+const RANGE_WIDTH: f32 = 2.0;
 
 fn print_world_state(world: &mut World) {
     println!("\nEntity stats:");
@@ -95,6 +97,15 @@ fn draw_waypoints(waypoints: &[components::Position]) {
     }
 }
 
+struct Tower {
+    position: Vec2,
+    range: f32,
+}
+
+enum Selection {
+    Tower(Tower),
+}
+
 #[macroquad::main("TD")]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -126,6 +137,7 @@ async fn main() -> anyhow::Result<()> {
     )>::default();
     let mut step: usize = 0;
     let mut arrived: usize = 0;
+    let mut selection: Option<Selection> = None;
 
     loop {
         match read_camera_action() {
@@ -165,7 +177,18 @@ async fn main() -> anyhow::Result<()> {
             Some(Action::Build(build_position)) => {
                 spawns::spawn_tower(&mut world, &build_position);
             }
-            Some(Action::View(_view_position)) => {}
+            Some(Action::View(view_position)) => {
+                if let Some((tower_position, range)) = spawns::closest_tower(&world, &view_position)
+                {
+                    selection = Some(Selection::Tower(Tower {
+                        position: tower_position,
+                        range,
+                    }));
+                    println!("tower: {:?}, range: {:?}", tower_position, range);
+                } else {
+                    selection = None;
+                }
+            }
             Some(Action::Remove(remove_position)) => {
                 spawns::remove_tower(&mut world, &remove_position);
             }
@@ -190,6 +213,19 @@ async fn main() -> anyhow::Result<()> {
         draw_world(&world);
         if debug {
             draw_waypoints(waypoints.as_slice());
+        }
+        match &selection {
+            None => {}
+            Some(Selection::Tower(tower)) => {
+                draw_rectangle_lines(
+                    tower.position.x - tower.range * 0.5,
+                    tower.position.y - tower.range * 0.5,
+                    tower.range,
+                    tower.range,
+                    RANGE_WIDTH,
+                    BLACK,
+                );
+            }
         }
 
         set_default_camera();

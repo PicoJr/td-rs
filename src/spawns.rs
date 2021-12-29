@@ -68,3 +68,17 @@ pub fn remove_tower(world: &mut World, position: &Vec2) {
         world.despawn(id).unwrap();
     }
 }
+
+pub fn closest_tower(world: &World, position: &Vec2) -> Option<(Vec2, f32)> {
+    let target = Position {
+        x: position.x as i32,
+        y: position.y as i32,
+    };
+    let closest_entity_to_position = world
+        .query::<With<Damage, (&Position, &Range)>>()
+        .iter()
+        .filter(|(_id, (p, _range))| manhattan_distance(p, &target) < 10i32)
+        .min_by_key(|(_id, (p, _range))| manhattan_distance(p, &target))
+        .map(|(_id, (p, r))| (p.x, p.y, r.0));
+    closest_entity_to_position.map(|(px, py, r)| (Vec2::new(px as f32, py as f32), r as f32))
+}
