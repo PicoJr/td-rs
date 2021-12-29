@@ -146,7 +146,6 @@ async fn main() -> anyhow::Result<()> {
         camera = Camera2D {
             target: vec2(camera_target.0, camera_target.1),
             zoom: vec2(zoom, -zoom * screen_width() / screen_height()),
-            offset: vec2(camera_target.0, camera_target.1),
             ..Default::default()
         };
 

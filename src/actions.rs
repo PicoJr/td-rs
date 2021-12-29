@@ -29,13 +29,13 @@ pub(crate) enum Mode {
 
 pub(crate) fn read_camera_action() -> Option<CameraAction> {
     if is_key_down(KeyCode::Left) {
-        Some(CameraAction::Target(0.1, 0.0))
+        Some(CameraAction::Target(-1.0, 0.0))
     } else if is_key_down(KeyCode::Right) {
-        Some(CameraAction::Target(-0.1, 0.0))
+        Some(CameraAction::Target(1.0, 0.0))
     } else if is_key_down(KeyCode::Up) {
-        Some(CameraAction::Target(0.0, -0.1))
+        Some(CameraAction::Target(0.0, -1.0))
     } else if is_key_down(KeyCode::Down) {
-        Some(CameraAction::Target(0.0, 0.1))
+        Some(CameraAction::Target(0.0, 1.0))
     } else if is_key_down(KeyCode::J) {
         Some(CameraAction::Zoom(0.9))
     } else if is_key_down(KeyCode::K) {
