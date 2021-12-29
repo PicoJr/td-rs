@@ -11,6 +11,7 @@ mod systems;
 
 use crate::actions::{read_camera_action, read_simulation_action, Action, CameraAction, Mode};
 use crate::config::get_config;
+use crate::spawns::Selection;
 use hecs::*;
 use macroquad::prelude::{
     clear_background, draw_line, draw_rectangle_lines, draw_text, get_fps, next_frame,
@@ -97,15 +98,6 @@ fn draw_waypoints(waypoints: &[components::Position]) {
     }
 }
 
-struct Tower {
-    position: Vec2,
-    range: f32,
-}
-
-enum Selection {
-    Tower(Tower),
-}
-
 #[macroquad::main("TD")]
 async fn main() -> anyhow::Result<()> {
     env_logger::init();
@@ -153,7 +145,7 @@ async fn main() -> anyhow::Result<()> {
 
         camera = Camera2D {
             target: vec2(camera_target.0, camera_target.1),
-            zoom: vec2(zoom, zoom * screen_width() / screen_height()),
+            zoom: vec2(zoom, -zoom * screen_width() / screen_height()),
             offset: vec2(camera_target.0, camera_target.1),
             ..Default::default()
         };
@@ -178,16 +170,7 @@ async fn main() -> anyhow::Result<()> {
                 spawns::spawn_tower(&mut world, &build_position);
             }
             Some(Action::View(view_position)) => {
-                if let Some((tower_position, range)) = spawns::closest_tower(&world, &view_position)
-                {
-                    selection = Some(Selection::Tower(Tower {
-                        position: tower_position,
-                        range,
-                    }));
-                    println!("tower: {:?}, range: {:?}", tower_position, range);
-                } else {
-                    selection = None;
-                }
+                selection = spawns::closest_entity(&mut world, &view_position);
             }
             Some(Action::Remove(remove_position)) => {
                 spawns::remove_tower(&mut world, &remove_position);
@@ -216,15 +199,26 @@ async fn main() -> anyhow::Result<()> {
         }
         match &selection {
             None => {}
-            Some(Selection::Tower(tower)) => {
-                draw_rectangle_lines(
-                    tower.position.x - tower.range * 0.5,
-                    tower.position.y - tower.range * 0.5,
-                    tower.range,
-                    tower.range,
-                    RANGE_WIDTH,
-                    BLACK,
-                );
+            Some(selection) => {
+                if let Some(range) = &selection.range {
+                    draw_rectangle_lines(
+                        selection.position.x as f32 - range.0 as f32 * 0.5,
+                        selection.position.y as f32 - range.0 as f32 * 0.5,
+                        range.0 as f32,
+                        range.0 as f32,
+                        RANGE_WIDTH,
+                        BLACK,
+                    );
+                }
+                if let Some(damage) = &selection.damage {
+                    draw_text(
+                        &format!("damage: {:?}", damage),
+                        selection.position.x as f32,
+                        selection.position.y as f32,
+                        20.0,
+                        BLACK,
+                    );
+                }
             }
         }
 

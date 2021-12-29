@@ -4,6 +4,14 @@ use hecs::{With, World};
 use macroquad::prelude::Vec2;
 use rand::{thread_rng, Rng};
 
+pub struct Selection {
+    pub position: Position,
+    pub range: Option<Range>,
+    pub damage: Option<Damage>,
+    pub speed: Option<Speed>,
+    pub health: Option<Health>,
+}
+
 pub fn batch_spawn_units(world: &mut World, units: usize, spawn_position: &Position) {
     let mut rng = thread_rng();
     let to_spawn = (0..units).map(|_| {
@@ -69,16 +77,30 @@ pub fn remove_tower(world: &mut World, position: &Vec2) {
     }
 }
 
-pub fn closest_tower(world: &World, position: &Vec2) -> Option<(Vec2, f32)> {
+pub fn closest_entity(world: &mut World, position: &Vec2) -> Option<Selection> {
     let target = Position {
         x: position.x as i32,
         y: position.y as i32,
     };
     let closest_entity_to_position = world
-        .query::<With<Damage, (&Position, &Range)>>()
+        .query::<&Position>()
         .iter()
-        .filter(|(_id, (p, _range))| manhattan_distance(p, &target) < 10i32)
-        .min_by_key(|(_id, (p, _range))| manhattan_distance(p, &target))
-        .map(|(_id, (p, r))| (p.x, p.y, r.0));
-    closest_entity_to_position.map(|(px, py, r)| (Vec2::new(px as f32, py as f32), r as f32))
+        .filter(|(_id, p)| manhattan_distance(p, &target) < 10i32)
+        .min_by_key(|(_id, p)| manhattan_distance(p, &target))
+        .map(|(id, p)| (id, p.clone()));
+    if let Some((id, p)) = closest_entity_to_position {
+        let damage = world.get_mut::<Damage>(id).ok();
+        let health = world.get_mut::<Health>(id).ok();
+        let range = world.get_mut::<Range>(id).ok();
+        let speed = world.get_mut::<Speed>(id).ok();
+        Some(Selection {
+            position: p,
+            range: range.map(|r| r.clone()),
+            damage: damage.map(|d| d.clone()),
+            speed: speed.map(|s| s.clone()),
+            health: health.map(|h| h.clone()),
+        })
+    } else {
+        None
+    }
 }
