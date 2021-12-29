@@ -1,11 +1,12 @@
 use crate::components::{Damage, Health, Position, Range, Score, Speed, Target, Waypoint};
 use crate::systems::manhattan_distance;
-use hecs::{With, World};
+use hecs::{Entity, With, World};
 use macroquad::prelude::Vec2;
 use rand::{thread_rng, Rng};
 
 pub struct Selection {
-    pub position: Position,
+    pub entity: Entity,
+    pub position: Option<Position>,
     pub range: Option<Range>,
     pub damage: Option<Damage>,
     pub speed: Option<Speed>,
@@ -77,6 +78,22 @@ pub fn remove_tower(world: &mut World, position: &Vec2) {
     }
 }
 
+pub fn get_selection(world: &mut World, entity: Entity) -> Selection {
+    let damage = world.get_mut::<Damage>(entity).ok();
+    let health = world.get_mut::<Health>(entity).ok();
+    let range = world.get_mut::<Range>(entity).ok();
+    let speed = world.get_mut::<Speed>(entity).ok();
+    let position = world.get_mut::<Position>(entity).ok();
+    Selection {
+        entity,
+        position: position.map(|p| p.clone()),
+        range: range.map(|r| r.clone()),
+        damage: damage.map(|d| d.clone()),
+        speed: speed.map(|s| s.clone()),
+        health: health.map(|h| h.clone()),
+    }
+}
+
 pub fn closest_entity(world: &mut World, position: &Vec2) -> Option<Selection> {
     let target = Position {
         x: position.x as i32,
@@ -87,20 +104,6 @@ pub fn closest_entity(world: &mut World, position: &Vec2) -> Option<Selection> {
         .iter()
         .filter(|(_id, p)| manhattan_distance(p, &target) < 10i32)
         .min_by_key(|(_id, p)| manhattan_distance(p, &target))
-        .map(|(id, p)| (id, p.clone()));
-    if let Some((id, p)) = closest_entity_to_position {
-        let damage = world.get_mut::<Damage>(id).ok();
-        let health = world.get_mut::<Health>(id).ok();
-        let range = world.get_mut::<Range>(id).ok();
-        let speed = world.get_mut::<Speed>(id).ok();
-        Some(Selection {
-            position: p,
-            range: range.map(|r| r.clone()),
-            damage: damage.map(|d| d.clone()),
-            speed: speed.map(|s| s.clone()),
-            health: health.map(|h| h.clone()),
-        })
-    } else {
-        None
-    }
+        .map(|(id, _p)| id);
+    closest_entity_to_position.map(|id| get_selection(world, id))
 }

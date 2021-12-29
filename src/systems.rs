@@ -86,7 +86,7 @@ pub fn system_fire_at_closest(world: &mut World) {
             .iter()
             .filter(|(target_id, target_position)| {
                 *target_id != tower_id
-                    && manhattan_distance(target_position, tower_position) < tower_range.0
+                    && manhattan_distance(target_position, tower_position) <= tower_range.0
             })
             .min_by_key(|(_, target_position)| manhattan_distance(tower_position, target_position))
             .map(|(entity, _pos)| entity);

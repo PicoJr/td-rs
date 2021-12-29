@@ -99,35 +99,38 @@ fn draw_waypoints(waypoints: &[components::Position]) {
 }
 
 fn draw_selection(selection: &Selection) {
-    if let Some(range) = &selection.range {
-        draw_rectangle_lines(
-            selection.position.x as f32 - range.0 as f32 * 0.5,
-            selection.position.y as f32 - range.0 as f32 * 0.5,
-            range.0 as f32,
-            range.0 as f32,
-            RANGE_WIDTH,
-            BLACK,
-        );
-    }
+    if let Some(position) = &selection.position {
+        if let Some(range) = &selection.range {
+            draw_rectangle_lines(
+                position.x as f32 - range.0 as f32,
+                position.y as f32 - range.0 as f32,
+                range.0 as f32 * 2.0,
+                range.0 as f32 * 2.0,
+                RANGE_WIDTH,
+                BLACK,
+            );
+        }
 
-    let mut description: Vec<String> = vec![];
-    if let Some(damage) = &selection.damage {
-        description.push(format!("damage: {:?}", damage.0));
-    }
-    if let Some(health) = &selection.health {
-        description.push(format!("health: {:?}/{:?}", health.value, health.max));
-    }
-    if let Some(speed) = &selection.speed {
-        description.push(format!("speed: {}", speed.0));
-    }
-    if !description.is_empty() {
-        draw_text(
-            &description.join(","),
-            selection.position.x as f32,
-            selection.position.y as f32,
-            20.0,
-            BLACK,
-        );
+        let mut description: Vec<String> = vec![];
+        description.push(format!("position: {:?}", position));
+        if let Some(damage) = &selection.damage {
+            description.push(format!("damage: {:?}", damage.0));
+        }
+        if let Some(health) = &selection.health {
+            description.push(format!("health: {:?}/{:?}", health.value, health.max));
+        }
+        if let Some(speed) = &selection.speed {
+            description.push(format!("speed: {}", speed.0));
+        }
+        if !description.is_empty() {
+            draw_text(
+                &description.join(","),
+                position.x as f32,
+                position.y as f32,
+                20.0,
+                BLACK,
+            );
+        }
     }
 }
 
@@ -232,7 +235,9 @@ async fn main() -> anyhow::Result<()> {
         match &selection {
             None => {}
             Some(selection) => {
-                draw_selection(selection);
+                // update selection
+                let updated_selection = spawns::get_selection(&mut world, selection.entity);
+                draw_selection(&updated_selection);
             }
         }
 
