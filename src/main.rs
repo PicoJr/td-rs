@@ -167,7 +167,6 @@ async fn main() -> anyhow::Result<()> {
             }
             Some(Action::View(_view_position)) => {}
             Some(Action::Remove(remove_position)) => {
-                println!("remove tower at {:?}", remove_position);
                 spawns::remove_tower(&mut world, &remove_position);
             }
             Some(Action::ChangeMode(new_mode)) => {
