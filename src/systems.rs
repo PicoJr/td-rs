@@ -2,15 +2,11 @@ use crate::components::{
     Damage, Distance, Health, Position, Range, Score, Speed, Target, Waypoint,
 };
 
+use hecs::{Entity, PreparedQuery, With, World};
+
 fn direction(movement: Distance) -> Distance {
     movement.clamp(-1, 1)
 }
-
-pub(crate) fn manhattan_distance(pos: &Position, other_pos: &Position) -> Distance {
-    (pos.x - other_pos.x).abs() + (pos.y - other_pos.y).abs()
-}
-
-use hecs::{Entity, PreparedQuery, With, World};
 
 pub fn system_integrate_motion(
     world: &mut World,
@@ -86,9 +82,9 @@ pub fn system_fire_at_closest(world: &mut World) {
             .iter()
             .filter(|(target_id, target_position)| {
                 *target_id != tower_id
-                    && manhattan_distance(target_position, tower_position) <= tower_range.0
+                    && (*target_position - tower_position).norm_squared() <= tower_range.squared
             })
-            .min_by_key(|(_, target_position)| manhattan_distance(tower_position, target_position))
+            .min_by_key(|(_, target_position)| (tower_position - *target_position).norm_squared())
             .map(|(entity, _pos)| entity);
 
         match closest {

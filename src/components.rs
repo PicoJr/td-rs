@@ -1,4 +1,5 @@
 use crate::Vec2;
+use std::ops::{Add, Sub};
 
 pub type Distance = i32;
 
@@ -14,6 +15,56 @@ impl From<Vec2> for Position {
             x: v.x as i32,
             y: v.y as i32,
         }
+    }
+}
+
+impl Add for Position {
+    type Output = Position;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Position {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Add for &Position {
+    type Output = Position;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Position {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Sub for Position {
+    type Output = Position;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Position {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl Sub for &Position {
+    type Output = Position;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Position {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl Position {
+    pub fn norm_squared(&self) -> Distance {
+        self.x * self.x + self.y * self.y
     }
 }
 
@@ -35,9 +86,11 @@ pub struct Damage(pub i32);
 
 // distance <= range => unit is at range
 #[derive(Clone, Debug)]
-pub struct Range(pub Distance);
+pub struct Range {
+    pub squared: Distance,
+}
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Score(pub i32);
 
 #[derive(Debug)]

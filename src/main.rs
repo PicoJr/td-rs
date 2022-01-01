@@ -14,11 +14,11 @@ use crate::config::get_config;
 use crate::spawns::Selection;
 use hecs::*;
 use macroquad::prelude::{
-    clear_background, draw_line, draw_rectangle_lines, draw_text, get_fps, next_frame,
-    screen_height, screen_width, set_camera, set_default_camera, vec2, Camera2D, Color, Vec2,
-    BLACK, DARKGRAY, GREEN, RED, WHITE,
+    clear_background, draw_line, draw_text, get_fps, next_frame, screen_height, screen_width,
+    set_camera, set_default_camera, vec2, Camera2D, Color, Vec2, BLACK, DARKGRAY, GREEN, RED,
+    WHITE,
 };
-use macroquad::shapes::{draw_circle, draw_rectangle};
+use macroquad::shapes::{draw_circle, draw_circle_lines, draw_rectangle};
 
 const TOWER_RADIUS: f32 = 10.0;
 const UNIT_RADIUS: f32 = 5.0;
@@ -101,11 +101,10 @@ fn draw_waypoints(waypoints: &[components::Position]) {
 fn draw_selection(selection: &Selection) {
     if let Some(position) = &selection.position {
         if let Some(range) = &selection.range {
-            draw_rectangle_lines(
-                position.x as f32 - range.0 as f32,
-                position.y as f32 - range.0 as f32,
-                range.0 as f32 * 2.0,
-                range.0 as f32 * 2.0,
+            draw_circle_lines(
+                position.x as f32,
+                position.y as f32,
+                (range.squared as f32).sqrt(),
                 RANGE_WIDTH,
                 BLACK,
             );
@@ -121,6 +120,9 @@ fn draw_selection(selection: &Selection) {
         }
         if let Some(speed) = &selection.speed {
             description.push(format!("speed: {}", speed.0));
+        }
+        if let Some(score) = &selection.score {
+            description.push(format!("score: {}", score.0));
         }
         if !description.is_empty() {
             draw_text(
