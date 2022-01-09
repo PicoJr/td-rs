@@ -144,6 +144,9 @@ async fn main() -> anyhow::Result<()> {
 
     let waypoints = vec![
         components::Position { x: -1000, y: 1000 },
+        components::Position { x: -1000, y: -1000 },
+        components::Position { x: 1000, y: -1000 },
+        components::Position { x: 1000, y: 0 },
         components::Position { x: 0, y: 0 },
     ];
     let start = waypoints.first().expect("waypoints not empty");

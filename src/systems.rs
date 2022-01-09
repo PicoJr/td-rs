@@ -1,6 +1,7 @@
 use crate::components::{
     Damage, Distance, Health, Position, Range, Score, Speed, Target, Waypoint,
 };
+use std::ops::Deref;
 
 use hecs::{Entity, PreparedQuery, With, World};
 
@@ -77,15 +78,29 @@ pub fn system_fire_at_closest(world: &mut World) {
     for (tower_id, (tower_position, tower_damage, tower_range, tower_score, tower_target)) in
         &mut world.query::<With<Damage, (&Position, &Damage, &Range, &mut Score, &mut Target)>>()
     {
-        let closest = world
-            .query::<With<Health, &Position>>()
-            .iter()
-            .filter(|(target_id, target_position)| {
-                *target_id != tower_id
-                    && (*target_position - tower_position).norm_squared() <= tower_range.squared
-            })
-            .min_by_key(|(_, target_position)| (tower_position - *target_position).norm_squared())
-            .map(|(entity, _pos)| entity);
+        let mut closest: Option<Entity> = None;
+
+        if let Some(entity) = tower_target.entity {
+            if let Ok(target_position) = world.get::<Position>(entity) {
+                if (target_position.deref() - tower_position).norm_squared() <= tower_range.squared
+                {
+                    closest = Some(entity);
+                }
+            }
+        }
+        if closest.is_none() {
+            closest = world
+                .query::<With<Health, &Position>>()
+                .iter()
+                .filter(|(target_id, target_position)| {
+                    *target_id != tower_id
+                        && (*target_position - tower_position).norm_squared() <= tower_range.squared
+                })
+                .min_by_key(|(_, target_position)| {
+                    (tower_position - *target_position).norm_squared()
+                })
+                .map(|(entity, _pos)| entity);
+        }
 
         match closest {
             Some(entity) => {
@@ -106,10 +121,12 @@ pub fn system_fire_at_closest(world: &mut World) {
                         x: target_position.x,
                         y: target_position.y,
                     });
+                    tower_target.entity = Some(entity);
                 }
             }
             None => {
                 tower_target.position = None;
+                tower_target.entity = None;
             }
         }
     }

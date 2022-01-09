@@ -1,4 +1,5 @@
 use crate::Vec2;
+use hecs::Entity;
 use std::ops::{Add, Sub};
 
 pub type Distance = i32;
@@ -96,6 +97,7 @@ pub struct Score(pub i32);
 #[derive(Debug)]
 pub struct Target {
     pub(crate) position: Option<Position>,
+    pub(crate) entity: Option<Entity>,
 }
 
 #[derive(Debug)]

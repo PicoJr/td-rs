@@ -44,7 +44,10 @@ pub fn batch_spawn_towers(world: &mut World, towers: usize) {
             squared: rng.gen_range(10_000..20_000),
         };
         let score = Score(0);
-        let target = Target { position: None };
+        let target = Target {
+            position: None,
+            entity: None,
+        };
         (position, damage, range, score, target)
     });
     world.spawn_batch(to_spawn);
@@ -61,7 +64,10 @@ pub fn spawn_tower(world: &mut World, position: &Vec2) {
         squared: rng.gen_range(10_000..20_000),
     };
     let score = Score(0);
-    let target = Target { position: None };
+    let target = Target {
+        position: None,
+        entity: None,
+    };
 
     world.spawn((position, damage, range, score, target));
 }
